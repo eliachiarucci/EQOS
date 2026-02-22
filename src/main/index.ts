@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -11,7 +11,13 @@ import {
   deleteBoardProfile,
   setActiveProfile
 } from './protocol'
-import { startCapture, stopCapture } from './audioCapture'
+
+if (process.platform === 'darwin') {
+  app.commandLine.appendSwitch(
+    'enable-features',
+    'MacLoopbackAudioForScreenShare,MacSckSystemAudioLoopbackOverride'
+  )
+}
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -58,14 +64,6 @@ function registerIpcHandlers(): void {
   ipcMain.handle('board:saveProfile', (_event, profile) => saveBoardProfile(profile))
   ipcMain.handle('board:deleteProfile', (_event, id: string) => deleteBoardProfile(id))
   ipcMain.handle('board:setActive', (_event, id: string) => setActiveProfile(id))
-
-  ipcMain.handle('analyzer:start', () => {
-    const win = BrowserWindow.getAllWindows()[0]
-    if (!win) throw new Error('No window available')
-    return startCapture(win)
-  })
-
-  ipcMain.handle('analyzer:stop', () => stopCapture())
 }
 
 app.whenReady().then(() => {
@@ -76,6 +74,10 @@ app.whenReady().then(() => {
   })
 
   registerIpcHandlers()
+
+  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+    callback({ audio: 'loopback' } as Electron.Streams)
+  })
 
   createWindow()
 
