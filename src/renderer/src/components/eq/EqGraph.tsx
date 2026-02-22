@@ -125,6 +125,8 @@ export function EqGraph(): React.JSX.Element {
 
     if (useAnalyzerStore.getState().isAnalyzerOn) {
       startLoop()
+    } else {
+      useAnalyzerStore.getState().toggleAnalyzer()
     }
 
     return () => {
