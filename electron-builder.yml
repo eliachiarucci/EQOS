@@ -25,6 +25,7 @@ mac:
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    - NSAudioCaptureUsageDescription: EQOS captures system audio to display a real-time frequency analyzer on the EQ graph.
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}

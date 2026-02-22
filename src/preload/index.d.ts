@@ -18,7 +18,14 @@ interface UsbApi {
   onStatusChange(callback: (status: { connected: boolean; path?: string }) => void): () => void
 }
 
+interface AnalyzerApi {
+  start(): Promise<void>
+  stop(): Promise<void>
+  onSpectrum(callback: (data: number[]) => void): () => void
+}
+
 interface Api {
+  analyzer: AnalyzerApi
   board: BoardApi
   usb: UsbApi
 }

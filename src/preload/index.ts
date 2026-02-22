@@ -13,6 +13,15 @@ const api = {
     deleteProfile: (id: string): Promise<boolean> => ipcRenderer.invoke('board:deleteProfile', id),
     setActive: (id: string): Promise<boolean> => ipcRenderer.invoke('board:setActive', id)
   },
+  analyzer: {
+    start: (): Promise<void> => ipcRenderer.invoke('analyzer:start'),
+    stop: (): Promise<void> => ipcRenderer.invoke('analyzer:stop'),
+    onSpectrum: (callback: (data: number[]) => void): (() => void) => {
+      const handler = (_event: unknown, data: number[]): void => callback(data)
+      ipcRenderer.on('analyzer:spectrum', handler)
+      return () => ipcRenderer.removeListener('analyzer:spectrum', handler)
+    }
+  },
   usb: {
     getStatus: (): Promise<{ connected: boolean; path?: string }> =>
       ipcRenderer.invoke('usb:getStatus'),

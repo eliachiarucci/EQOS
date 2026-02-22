@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { useEqStore } from '@/stores/eqStore'
+import { useAnalyzerStore } from '@/stores/analyzerStore'
 import {
   freqToX,
   dbToY,
@@ -12,6 +13,14 @@ import {
   DEFAULT_PADDING
 } from '@/lib/graphUtils'
 import { computeCoefficients, evaluateResponse, computeCombinedResponse } from '@/lib/biquad'
+import {
+  getSpectrumData,
+  isAnalyzerRunning,
+  ANALYZER_FFT_SIZE,
+  ANALYZER_SAMPLE_RATE,
+  ANALYZER_FLOOR_DB,
+  ANALYZER_CEIL_DB
+} from '@/lib/analyzerEngine'
 import type { GraphDimensions, EqPoint } from '../../../../shared/types/eq'
 
 const POINT_RADIUS = 8
@@ -24,6 +33,11 @@ const GRID_COLOR = 'rgba(255, 255, 255, 0.06)'
 const ZERO_LINE_COLOR = 'rgba(255, 255, 255, 0.15)'
 const AXIS_LABEL_COLOR = 'rgba(255, 255, 255, 0.4)'
 const COMBINED_CURVE_COLOR = '#e2e8f0'
+
+const ANALYZER_GLOW_COLOR = 'rgba(100, 200, 255, 0.6)'
+const ANALYZER_STROKE_COLOR = 'rgba(100, 200, 255, 0.5)'
+const ANALYZER_LINE_WIDTH = 1.5
+const ANALYZER_SHADOW_BLUR = 6
 
 export function EqGraph(): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -59,6 +73,7 @@ export function EqGraph(): React.JSX.Element {
     drawBackground(ctx, dims)
     drawGrid(ctx, dims)
     drawAxisLabels(ctx, dims)
+    drawAnalyzer(ctx, dims)
     drawIndividualCurves(ctx, dims, points, selectedPointId)
     drawCombinedCurve(ctx, dims, points)
     drawPoints(ctx, dims, points, selectedPointId)
@@ -82,11 +97,39 @@ export function EqGraph(): React.JSX.Element {
 
   useEffect(() => {
     const unsub = useEqStore.subscribe(() => {
-      cancelAnimationFrame(animFrameRef.current)
-      animFrameRef.current = requestAnimationFrame(render)
+      if (!isAnalyzerRunning()) {
+        cancelAnimationFrame(animFrameRef.current)
+        animFrameRef.current = requestAnimationFrame(render)
+      }
     })
+
+    const startLoop = (): void => {
+      const loop = (): void => {
+        render()
+        if (isAnalyzerRunning()) {
+          animFrameRef.current = requestAnimationFrame(loop)
+        }
+      }
+      cancelAnimationFrame(animFrameRef.current)
+      animFrameRef.current = requestAnimationFrame(loop)
+    }
+
+    const unsubAnalyzer = useAnalyzerStore.subscribe((state) => {
+      if (state.isAnalyzerOn) {
+        startLoop()
+      } else {
+        cancelAnimationFrame(animFrameRef.current)
+        animFrameRef.current = requestAnimationFrame(render)
+      }
+    })
+
+    if (useAnalyzerStore.getState().isAnalyzerOn) {
+      startLoop()
+    }
+
     return () => {
       unsub()
+      unsubAnalyzer()
       cancelAnimationFrame(animFrameRef.current)
     }
   }, [render])
@@ -226,6 +269,71 @@ function drawAxisLabels(ctx: CanvasRenderingContext2D, dims: GraphDimensions): v
     const label = db > 0 ? `+${db}` : `${db}`
     ctx.fillText(label, dims.paddingLeft - 8, y)
   }
+}
+
+function drawAnalyzer(ctx: CanvasRenderingContext2D, dims: GraphDimensions): void {
+  const data = getSpectrumData()
+  if (!data) return
+
+  const plotLeft = dims.paddingLeft
+  const plotRight = dims.width - dims.paddingRight
+  const plotTop = dims.paddingTop
+  const plotBottom = dims.height - dims.paddingBottom
+  const plotHeight = plotBottom - plotTop
+  const binCount = ANALYZER_FFT_SIZE / 2
+  const dbRange = ANALYZER_CEIL_DB - ANALYZER_FLOOR_DB
+
+  ctx.save()
+  ctx.shadowBlur = ANALYZER_SHADOW_BLUR
+  ctx.shadowColor = ANALYZER_GLOW_COLOR
+  ctx.strokeStyle = ANALYZER_STROKE_COLOR
+  ctx.lineWidth = ANALYZER_LINE_WIDTH
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+
+  let started = false
+
+  for (let x = plotLeft; x <= plotRight; x += 1) {
+    const freqLow = xToFreq(x - 0.5, dims)
+    const freqHigh = xToFreq(x + 0.5, dims)
+    const freqCenter = xToFreq(x, dims)
+
+    const binLow = (freqLow * ANALYZER_FFT_SIZE) / ANALYZER_SAMPLE_RATE
+    const binHigh = (freqHigh * ANALYZER_FFT_SIZE) / ANALYZER_SAMPLE_RATE
+    const binCenter = (freqCenter * ANALYZER_FFT_SIZE) / ANALYZER_SAMPLE_RATE
+
+    let magnitude: number
+
+    if (binHigh - binLow < 1) {
+      const lowIdx = Math.max(0, Math.floor(binCenter))
+      const highIdx = Math.min(lowIdx + 1, binCount - 1)
+      const fraction = binCenter - lowIdx
+      magnitude = data[lowIdx] * (1 - fraction) + data[highIdx] * fraction
+    } else {
+      const startBin = Math.max(0, Math.floor(binLow))
+      const endBin = Math.min(binCount - 1, Math.ceil(binHigh))
+      let sum = 0
+      let count = 0
+      for (let b = startBin; b <= endBin; b++) {
+        sum += data[b]
+        count++
+      }
+      magnitude = count > 0 ? sum / count : ANALYZER_FLOOR_DB
+    }
+
+    magnitude = Math.max(ANALYZER_FLOOR_DB, Math.min(ANALYZER_CEIL_DB, magnitude))
+    const y = plotTop + ((ANALYZER_CEIL_DB - magnitude) / dbRange) * plotHeight
+
+    if (!started) {
+      ctx.moveTo(x, y)
+      started = true
+    } else {
+      ctx.lineTo(x, y)
+    }
+  }
+
+  ctx.stroke()
+  ctx.restore()
 }
 
 function drawIndividualCurves(

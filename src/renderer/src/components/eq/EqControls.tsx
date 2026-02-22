@@ -14,9 +14,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Plus, Trash2, Power } from 'lucide-react'
+import { Plus, Trash2, Power, Activity } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import type { FilterType } from '../../../../shared/types/eq'
 import { formatFrequency } from '@/lib/graphUtils'
+import { useAnalyzerStore } from '@/stores/analyzerStore'
 import { useCallback, useMemo } from 'react'
 
 const FILTER_TYPE_LABELS: Record<FilterType, string> = {
@@ -46,6 +52,11 @@ export function EqControls(): React.JSX.Element {
     () => currentProfile?.points.find((p) => p.id === selectedPointId) ?? null,
     [currentProfile, selectedPointId]
   )
+
+  const isAnalyzerOn = useAnalyzerStore((s) => s.isAnalyzerOn)
+  const isStarting = useAnalyzerStore((s) => s.isStarting)
+  const analyzerError = useAnalyzerStore((s) => s.error)
+  const toggleAnalyzer = useAnalyzerStore((s) => s.toggleAnalyzer)
 
   const canAddPoint = (currentProfile?.points.length ?? 0) < 10
 
@@ -165,6 +176,33 @@ export function EqControls(): React.JSX.Element {
           </Button>
         </>
       )}
+
+      <div className="flex-1" />
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => toggleAnalyzer()}
+            disabled={isStarting}
+            className={
+              isAnalyzerOn ? 'text-cyan-400' : analyzerError ? 'text-red-400' : ''
+            }
+          >
+            <Activity className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          {isStarting
+            ? 'Starting analyzer...'
+            : analyzerError
+              ? analyzerError
+              : isAnalyzerOn
+                ? 'Stop spectrum analyzer'
+                : 'Start spectrum analyzer'}
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }

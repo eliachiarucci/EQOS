@@ -11,6 +11,7 @@ import {
   deleteBoardProfile,
   setActiveProfile
 } from './protocol'
+import { startCapture, stopCapture } from './audioCapture'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -57,6 +58,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle('board:saveProfile', (_event, profile) => saveBoardProfile(profile))
   ipcMain.handle('board:deleteProfile', (_event, id: string) => deleteBoardProfile(id))
   ipcMain.handle('board:setActive', (_event, id: string) => setActiveProfile(id))
+
+  ipcMain.handle('analyzer:start', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) throw new Error('No window available')
+    return startCapture(win)
+  })
+
+  ipcMain.handle('analyzer:stop', () => stopCapture())
 }
 
 app.whenReady().then(() => {
@@ -67,6 +76,7 @@ app.whenReady().then(() => {
   })
 
   registerIpcHandlers()
+
   createWindow()
 
   app.on('activate', function () {
