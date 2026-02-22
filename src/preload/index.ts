@@ -21,13 +21,38 @@ const api = {
     connect: (path: string): Promise<void> => ipcRenderer.invoke('usb:connect', path),
     disconnect: (): Promise<void> => ipcRenderer.invoke('usb:disconnect'),
     onStatusChange: (
-      callback: (status: { connected: boolean; path?: string }) => void
+      callback: (status: { connected: boolean; path?: string; reason?: string }) => void
     ): (() => void) => {
-      const handler = (_event: unknown, status: { connected: boolean; path?: string }): void =>
-        callback(status)
+      const handler = (
+        _event: unknown,
+        status: { connected: boolean; path?: string; reason?: string }
+      ): void => callback(status)
       ipcRenderer.on('usb:statusChanged', handler)
       return () => {
         ipcRenderer.removeListener('usb:statusChanged', handler)
+      }
+    }
+  },
+  dfu: {
+    selectFile: (): Promise<string | null> => ipcRenderer.invoke('dfu:selectFile'),
+    startUpdate: (firmwarePath: string): Promise<void> =>
+      ipcRenderer.invoke('dfu:startUpdate', firmwarePath),
+    getState: (): Promise<string> => ipcRenderer.invoke('dfu:getState'),
+    onProgress: (
+      callback: (progress: {
+        state: string
+        percent: number
+        message: string
+        error?: string
+      }) => void
+    ): (() => void) => {
+      const handler = (
+        _event: unknown,
+        progress: { state: string; percent: number; message: string; error?: string }
+      ): void => callback(progress)
+      ipcRenderer.on('dfu:progress', handler)
+      return () => {
+        ipcRenderer.removeListener('dfu:progress', handler)
       }
     }
   }

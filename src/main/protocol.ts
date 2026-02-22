@@ -9,6 +9,7 @@ const CMD_SET_PROFILE = 0x04
 const CMD_DELETE_PROFILE = 0x05
 const CMD_SET_ACTIVE = 0x06
 const CMD_SAVE_TO_FLASH = 0x07
+const CMD_ENTER_DFU = 0x08
 
 // Status codes
 const STATUS_OK = 0x00
@@ -333,6 +334,17 @@ export async function setActiveProfile(id: string): Promise<boolean> {
 
   const { status } = await sendCommand(CMD_SET_ACTIVE, Buffer.from([slotId]))
   return status === STATUS_OK
+}
+
+export async function enterDfuMode(): Promise<boolean> {
+  try {
+    const { status } = await sendCommand(CMD_ENTER_DFU)
+    return status === STATUS_OK
+  } catch {
+    // The board reboots into DFU before sending a response,
+    // causing a read timeout. This is expected — treat as success.
+    return true
+  }
 }
 
 export async function deleteBoardProfile(id: string): Promise<boolean> {

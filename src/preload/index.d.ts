@@ -1,5 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { EqProfile } from '../shared/types/eq'
+import type { DfuState, DfuProgress } from '../shared/types/dfu'
 
 interface BoardApi {
   getDeviceInfo(): Promise<{ activeProfileId: number }>
@@ -15,12 +16,22 @@ interface UsbApi {
   listDevices(): Promise<{ path: string; manufacturer?: string }[]>
   connect(path: string): Promise<void>
   disconnect(): Promise<void>
-  onStatusChange(callback: (status: { connected: boolean; path?: string }) => void): () => void
+  onStatusChange(
+    callback: (status: { connected: boolean; path?: string; reason?: string }) => void
+  ): () => void
+}
+
+interface DfuApi {
+  selectFile(): Promise<string | null>
+  startUpdate(firmwarePath: string): Promise<void>
+  getState(): Promise<DfuState>
+  onProgress(callback: (progress: DfuProgress) => void): () => void
 }
 
 interface Api {
   board: BoardApi
   usb: UsbApi
+  dfu: DfuApi
 }
 
 declare global {

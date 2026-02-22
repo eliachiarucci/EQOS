@@ -5,9 +5,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Usb, Loader2 } from 'lucide-react'
+import { Usb, Loader2, Upload } from 'lucide-react'
+import { FirmwareUpdateDialog } from './FirmwareUpdateDialog'
 
 interface DeviceInfo {
   path: string
@@ -21,6 +23,8 @@ export function UsbStatus(): React.JSX.Element {
   const setBoardProfiles = useEqStore((s) => s.setBoardProfiles)
   const [devices, setDevices] = useState<DeviceInfo[]>([])
   const [scanning, setScanning] = useState(false)
+  const [dfuDialogOpen, setDfuDialogOpen] = useState(false)
+  const dfuInProgress = useRef(false)
   const manuallyDisconnected = useRef(false)
   const knownDevicePaths = useRef<Set<string>>(new Set())
 
@@ -76,25 +80,28 @@ export function UsbStatus(): React.JSX.Element {
       setConnected(status.connected)
       if (status.connected) {
         fetchBoardProfiles()
-      } else {
+      } else if (status.reason !== 'dfu') {
         setBoardProfiles([])
       }
     })
     return cleanup
   }, [setConnected, fetchBoardProfiles, setBoardProfiles])
 
-  // Poll for devices every 3 seconds when not connected
+  // Poll for devices every 3 seconds when not connected (suppress during DFU)
   useEffect(() => {
     if (isConnected) return
 
-    scanDevices()
-    const interval = setInterval(scanDevices, 3000)
+    const poll = (): void => {
+      if (!dfuInProgress.current) scanDevices()
+    }
+    poll()
+    const interval = setInterval(poll, 3000)
     return () => clearInterval(interval)
   }, [isConnected, scanDevices])
 
-  // Auto-connect only for newly plugged-in devices (not after manual disconnect)
+  // Auto-connect only for newly plugged-in devices (not after manual disconnect or during DFU)
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected || dfuInProgress.current) {
       // Track connected device paths as known
       knownDevicePaths.current = new Set(devices.map((d) => d.path))
       return
@@ -114,6 +121,7 @@ export function UsbStatus(): React.JSX.Element {
     if (devices.length === 1) {
       // Double-check main process isn't already connected before attempting
       window.api.usb.getStatus().then((status) => {
+        if (dfuInProgress.current) return
         if (status.connected) {
           setConnected(true)
         } else {
@@ -137,7 +145,22 @@ export function UsbStatus(): React.JSX.Element {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {isConnected && <DropdownMenuItem onClick={disconnectDevice}>Disconnect</DropdownMenuItem>}
+        {isConnected && (
+          <>
+            <DropdownMenuItem onClick={disconnectDevice}>Disconnect</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                dfuInProgress.current = true
+                setDfuDialogOpen(true)
+              }}
+            >
+              <Upload className="h-4 w-4" />
+              Firmware Update...
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         {devices.length === 0 ? (
           <DropdownMenuItem disabled>
             {scanning ? 'Scanning...' : 'No devices found'}
@@ -150,6 +173,13 @@ export function UsbStatus(): React.JSX.Element {
           ))
         )}
       </DropdownMenuContent>
+      <FirmwareUpdateDialog
+        open={dfuDialogOpen}
+        onOpenChange={(open) => {
+          setDfuDialogOpen(open)
+          dfuInProgress.current = open
+        }}
+      />
     </DropdownMenu>
   )
 }

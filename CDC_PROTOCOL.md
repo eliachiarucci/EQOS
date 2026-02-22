@@ -119,6 +119,14 @@ Takes effect immediately — the device switches EQ processing to the selected p
 
 Erases the profile flash sector and writes all current profiles from RAM. Returns `ERR_FLASH` if the operation fails.
 
+### 0x08 — ENTER_DFU
+
+**Request payload:** (none, LEN=0)
+
+Reboots the device into its USB DFU bootloader. The CDC connection will drop immediately — the device may or may not send a response before rebooting. After reboot, the device re-enumerates as a standard USB DFU device with ST VID `0x0483`. Use `dfu-util` to flash new firmware, then the device reboots back to normal mode.
+
+**Note:** The host should treat a read timeout after sending this command as success (the board rebooted before it could respond).
+
 ## Data Structures (Binary Layout)
 
 ### eq_filter_t — 36 bytes

@@ -13,6 +13,11 @@ export interface SerialDeviceInfo {
 export class SerialService {
   private port: SerialPort | null = null
   private mainWindow: BrowserWindow | null = null
+  private enteringDfu = false
+
+  setEnteringDfu(entering: boolean): void {
+    this.enteringDfu = entering
+  }
 
   setMainWindow(window: BrowserWindow): void {
     this.mainWindow = window
@@ -130,7 +135,8 @@ export class SerialService {
   private emitStatus(connected: boolean): void {
     this.mainWindow?.webContents.send('usb:statusChanged', {
       connected,
-      path: connected ? this.port?.path : undefined
+      path: connected ? this.port?.path : undefined,
+      reason: !connected && this.enteringDfu ? 'dfu' : undefined
     })
   }
 }
