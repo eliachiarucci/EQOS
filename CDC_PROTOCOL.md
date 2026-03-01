@@ -3,7 +3,6 @@
 ## Connection
 
 The DA15 enumerates as a USB composite device with three interfaces:
-
 - **Audio** (UAC1 stereo speaker, 48kHz/24-bit)
 - **DFU Runtime** (firmware update trigger)
 - **CDC** (virtual serial port for EQ profile management)
@@ -19,13 +18,11 @@ No baud rate configuration is needed (it's USB CDC, not a real UART), but most s
 All communication is request/response. The host (Electron app) sends a request, the device always replies.
 
 ### Request frame
-
 ```
 [CMD:1] [LEN:2 LE] [PAYLOAD:LEN bytes] [CRC8:1]
 ```
 
 ### Response frame
-
 ```
 [CMD|0x80:1] [LEN:2 LE] [STATUS:1] [PAYLOAD:LEN-1 bytes] [CRC8:1]
 ```
@@ -38,26 +35,26 @@ All communication is request/response. The host (Electron app) sends a request, 
 
 ```javascript
 function crc8(data) {
-  let crc = 0x00
+  let crc = 0x00;
   for (const byte of data) {
-    crc ^= byte
+    crc ^= byte;
     for (let bit = 0; bit < 8; bit++) {
-      if (crc & 0x80) crc = ((crc << 1) ^ 0x07) & 0xff
-      else crc = (crc << 1) & 0xff
+      if (crc & 0x80) crc = ((crc << 1) ^ 0x07) & 0xFF;
+      else crc = (crc << 1) & 0xFF;
     }
   }
-  return crc
+  return crc;
 }
 ```
 
 ### Status Codes
 
-| Value  | Name              | Meaning                          |
-| ------ | ----------------- | -------------------------------- |
-| `0x00` | OK                | Success                          |
-| `0x01` | ERR_INVALID_CMD   | Unknown command byte             |
+| Value | Name | Meaning |
+|-------|------|---------|
+| `0x00` | OK | Success |
+| `0x01` | ERR_INVALID_CMD | Unknown command byte |
 | `0x02` | ERR_INVALID_PARAM | Bad ID, wrong payload size, etc. |
-| `0x03` | ERR_FLASH         | Flash erase/write failed         |
+| `0x03` | ERR_FLASH | Flash erase/write failed |
 
 ## Commands
 
@@ -119,13 +116,41 @@ Takes effect immediately — the device switches EQ processing to the selected p
 
 Erases the profile flash sector and writes all current profiles from RAM. Returns `ERR_FLASH` if the operation fails.
 
+### 0x80 — SET_MANUFACTURER
+
+**Request payload (1–32 bytes):** Raw ASCII string (no null terminator required).
+
+Overrides the USB manufacturer string descriptor at runtime. Takes effect on the next descriptor request from the host (requires re-enumeration to be visible to the OS). Returns `ERR_INVALID_PARAM` if the payload is empty or longer than 32 bytes.
+
+### 0x81 — SET_PRODUCT
+
+**Request payload (1–32 bytes):** Raw ASCII string (no null terminator required).
+
+Overrides the USB product string descriptor at runtime. Same re-enumeration caveat as `SET_MANUFACTURER`. Returns `ERR_INVALID_PARAM` if the payload is empty or longer than 32 bytes.
+
 ### 0x90 — ENTER_DFU
 
 **Request payload:** (none, LEN=0)
 
-Reboots the device into its USB DFU bootloader. The CDC connection will drop immediately — the device may or may not send a response before rebooting. After reboot, the device re-enumerates as a standard USB DFU device with ST VID `0x0483`. Use `dfu-util` to flash new firmware, then the device reboots back to normal mode.
+Sends an OK response, then reboots the device into the STM32 system bootloader (DFU mode). The device re-enumerates as a DFU device for firmware flashing via `dfu-util`.
 
-**Note:** The host should treat a read timeout after sending this command as success (the board rebooted before it could respond).
+### 0x91 — REBOOT
+
+**Request payload:** (none, LEN=0)
+
+Sends an OK response, then performs a clean system reset via `NVIC_SystemReset()`. The device re-enumerates normally.
+
+### 0x92 — SET_DAC
+
+**Request payload (1 byte):** `[enable:1]` — `0x00` = off (mute DAC), `0x01` = on (unmute DAC).
+
+Directly controls the DAC mute GPIO. Returns `ERR_INVALID_PARAM` if the value is not 0 or 1.
+
+### 0x93 — SET_AMP
+
+**Request payload (1 byte):** `[enable:1]` — `0x00` = off (disable amplifier), `0x01` = on (enable amplifier).
+
+Directly controls the amplifier enable GPIO. Returns `ERR_INVALID_PARAM` if the value is not 0 or 1.
 
 ## Data Structures (Binary Layout)
 
@@ -133,19 +158,19 @@ Reboots the device into its USB DFU bootloader. The CDC connection will drop imm
 
 All floats are IEEE 754 single-precision, **little-endian** (ARM native byte order).
 
-| Offset | Size | Type  | Field   | Description                  |
-| ------ | ---- | ----- | ------- | ---------------------------- |
-| 0      | 4    | float | b0      | Biquad coefficient           |
-| 4      | 4    | float | b1      | Biquad coefficient           |
-| 8      | 4    | float | b2      | Biquad coefficient           |
-| 12     | 4    | float | a1      | Biquad coefficient           |
-| 16     | 4    | float | a2      | Biquad coefficient           |
-| 20     | 4    | float | freq    | Center/corner frequency (Hz) |
-| 24     | 4    | float | gain    | Gain in dB                   |
-| 28     | 4    | float | q       | Q factor                     |
-| 32     | 1    | uint8 | type    | Filter type (see below)      |
-| 33     | 1    | uint8 | enabled | 0=bypass, 1=active           |
-| 34     | 2    | —     | padding | Set to 0x00                  |
+| Offset | Size | Type | Field | Description |
+|--------|------|------|-------|-------------|
+| 0 | 4 | float | b0 | Biquad coefficient |
+| 4 | 4 | float | b1 | Biquad coefficient |
+| 8 | 4 | float | b2 | Biquad coefficient |
+| 12 | 4 | float | a1 | Biquad coefficient |
+| 16 | 4 | float | a2 | Biquad coefficient |
+| 20 | 4 | float | freq | Center/corner frequency (Hz) |
+| 24 | 4 | float | gain | Gain in dB |
+| 28 | 4 | float | q | Q factor |
+| 32 | 1 | uint8 | type | Filter type (see below) |
+| 33 | 1 | uint8 | enabled | 0=bypass, 1=active |
+| 34 | 2 | — | padding | Set to 0x00 |
 
 **Filter types:**
 | Value | Type |
@@ -159,12 +184,12 @@ All floats are IEEE 754 single-precision, **little-endian** (ARM native byte ord
 
 ### eq_profile_t — 380 bytes
 
-| Offset | Size | Type            | Field        | Description                                        |
-| ------ | ---- | --------------- | ------------ | -------------------------------------------------- |
-| 0      | 16   | char[16]        | name         | Null-terminated UTF-8 string (max 15 chars + null) |
-| 16     | 1    | uint8           | filter_count | Number of active filters (0-10)                    |
-| 17     | 3    | —               | padding      | Set to 0x00                                        |
-| 20     | 360  | eq_filter_t[10] | filters      | Array of 10 filter slots                           |
+| Offset | Size | Type | Field | Description |
+|--------|------|------|-------|-------------|
+| 0 | 16 | char[16] | name | Null-terminated UTF-8 string (max 15 chars + null) |
+| 16 | 1 | uint8 | filter_count | Number of active filters (0-10) |
+| 17 | 3 | — | padding | Set to 0x00 |
+| 20 | 360 | eq_filter_t[10] | filters | Array of 10 filter slots |
 
 Filters beyond `filter_count` are ignored by the device but should be zeroed.
 
@@ -200,11 +225,11 @@ For bulk operations (uploading multiple profiles), send SET_PROFILE for each, th
 
 ```javascript
 // Build request frame
-const cmd = 0x01
-const len = 0 // no payload
-const frame = Buffer.from([cmd, len & 0xff, (len >> 8) & 0xff])
-const crcByte = crc8(frame)
-const packet = Buffer.concat([frame, Buffer.from([crcByte])])
+const cmd = 0x01;
+const len = 0; // no payload
+const frame = Buffer.from([cmd, len & 0xFF, (len >> 8) & 0xFF]);
+const crcByte = crc8(frame);
+const packet = Buffer.concat([frame, Buffer.from([crcByte])]);
 // packet = [0x01, 0x00, 0x00, 0x79]
 
 // Send over serial port, then read response:
@@ -216,37 +241,37 @@ const packet = Buffer.concat([frame, Buffer.from([crcByte])])
 
 ```javascript
 // Build a profile with one bell filter at 1kHz, +3dB, Q=1.4
-const name = Buffer.alloc(16) // null-terminated
-Buffer.from('My Profile').copy(name)
+const name = Buffer.alloc(16); // null-terminated
+Buffer.from('My Profile').copy(name);
 
-const filter = Buffer.alloc(36)
+const filter = Buffer.alloc(36);
 // Write biquad coefficients (pre-computed for 1kHz bell, +3dB, Q=1.4, fs=48000)
-filter.writeFloatLE(1.0015, 0) // b0
-filter.writeFloatLE(-1.8955, 4) // b1
-filter.writeFloatLE(0.8985, 8) // b2
-filter.writeFloatLE(-1.8955, 12) // a1 (note: firmware negates these)
-filter.writeFloatLE(0.9, 16) // a2
-filter.writeFloatLE(1000.0, 20) // freq
-filter.writeFloatLE(3.0, 24) // gain
-filter.writeFloatLE(1.4, 28) // q
-filter[32] = 1 // type = FILTER_BELL
-filter[33] = 1 // enabled
+filter.writeFloatLE(1.0015, 0);   // b0
+filter.writeFloatLE(-1.8955, 4);  // b1
+filter.writeFloatLE(0.8985, 8);   // b2
+filter.writeFloatLE(-1.8955, 12); // a1 (note: firmware negates these)
+filter.writeFloatLE(0.9000, 16);  // a2
+filter.writeFloatLE(1000.0, 20);  // freq
+filter.writeFloatLE(3.0, 24);     // gain
+filter.writeFloatLE(1.4, 28);     // q
+filter[32] = 1;                   // type = FILTER_BELL
+filter[33] = 1;                   // enabled
 
 // Build eq_profile_t (380 bytes)
-const profile = Buffer.alloc(380)
-name.copy(profile, 0) // name at offset 0
-profile[16] = 1 // filter_count = 1
+const profile = Buffer.alloc(380);
+name.copy(profile, 0);            // name at offset 0
+profile[16] = 1;                  // filter_count = 1
 // padding at 17-19 is already 0
-filter.copy(profile, 20) // first filter at offset 20
+filter.copy(profile, 20);         // first filter at offset 20
 // remaining 9 filter slots are already zeroed
 
 // Build SET_PROFILE request: [cmd] [len_lo] [len_hi] [id] [profile...] [crc]
-const id = 0 // slot 0
-const payload = Buffer.concat([Buffer.from([id]), profile]) // 381 bytes
-const header = Buffer.from([0x04, payload.length & 0xff, (payload.length >> 8) & 0xff])
-const fullFrame = Buffer.concat([header, payload])
-const crc = crc8(fullFrame)
-const packet = Buffer.concat([fullFrame, Buffer.from([crc])])
+const id = 0; // slot 0
+const payload = Buffer.concat([Buffer.from([id]), profile]); // 381 bytes
+const header = Buffer.from([0x04, payload.length & 0xFF, (payload.length >> 8) & 0xFF]);
+const fullFrame = Buffer.concat([header, payload]);
+const crc = crc8(fullFrame);
+const packet = Buffer.concat([fullFrame, Buffer.from([crc])]);
 
 // Send packet, expect response: [0x84, 0x01, 0x00, 0x00, <crc>]
 //                                 ^CMD   ^LEN=1     ^OK
