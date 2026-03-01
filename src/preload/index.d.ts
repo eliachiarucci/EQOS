@@ -3,7 +3,7 @@ import type { EqProfile } from '../shared/types/eq'
 import type { DfuState, DfuProgress } from '../shared/types/dfu'
 
 interface BoardApi {
-  getDeviceInfo(): Promise<{ activeProfileId: number }>
+  getDeviceInfo(): Promise<{ fwVersion: string; maxProfiles: number; maxFilters: number; activeProfileId: number }>
   listProfiles(): Promise<{ id: string; name: string }[]>
   loadProfile(id: string): Promise<EqProfile | null>
   saveProfile(profile: EqProfile): Promise<boolean>

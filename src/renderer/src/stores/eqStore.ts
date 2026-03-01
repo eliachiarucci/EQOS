@@ -21,10 +21,12 @@ interface EqState {
   isDragging: boolean
   isConnected: boolean
   isDirty: boolean
+  fwVersion: string | null
 
   setCurrentProfile: (profile: EqProfile | null) => void
   setBoardProfiles: (profiles: { id: string; name: string }[]) => void
   setConnected: (connected: boolean) => void
+  setFwVersion: (version: string | null) => void
 
   createProfile: (name: string) => void
   addPoint: (filterType: FilterType) => void
@@ -53,11 +55,13 @@ export const useEqStore = create<EqState>((set, get) => ({
   isDragging: false,
   isConnected: false,
   isDirty: false,
+  fwVersion: null,
 
   setCurrentProfile: (profile) =>
     set({ currentProfile: profile, isDirty: false, selectedPointId: null }),
   setBoardProfiles: (profiles) => set({ boardProfiles: profiles }),
   setConnected: (connected) => set({ isConnected: connected }),
+  setFwVersion: (version) => set({ fwVersion: version }),
 
   createProfile: (name) => {
     const newProfile: EqProfile = {
@@ -138,6 +142,7 @@ export const useEqStore = create<EqState>((set, get) => ({
       const { currentProfile } = get()
       if (currentProfile?.id === 'default') {
         const deviceInfo = await window.api.board.getDeviceInfo()
+        set({ fwVersion: deviceInfo.fwVersion })
         const activeId = deviceInfo.activeProfileId
         if (activeId === 0xff || profiles.length === 0) {
           set({

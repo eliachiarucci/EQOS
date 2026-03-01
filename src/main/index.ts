@@ -114,7 +114,7 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.eqos')
+  electronApp.setAppUserModelId('com.eliachiarucci.eqos')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

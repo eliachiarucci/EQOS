@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: eqos
+appId: com.eliachiarucci.eqos
+productName: EQOS
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: eqos
+  executableName: EQOS
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

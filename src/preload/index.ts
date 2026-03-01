@@ -3,7 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 const api = {
   board: {
-    getDeviceInfo: (): Promise<{ activeProfileId: number }> =>
+    getDeviceInfo: (): Promise<{ fwVersion: string; maxProfiles: number; maxFilters: number; activeProfileId: number }> =>
       ipcRenderer.invoke('board:getDeviceInfo'),
     listProfiles: (): Promise<{ id: string; name: string }[]> =>
       ipcRenderer.invoke('board:listProfiles'),
