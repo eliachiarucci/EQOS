@@ -14,6 +14,7 @@ export class SerialService {
   private port: SerialPort | null = null
   private mainWindow: BrowserWindow | null = null
   private enteringDfu = false
+  private connecting = false
 
   setEnteringDfu(entering: boolean): void {
     this.enteringDfu = entering
@@ -36,42 +37,44 @@ export class SerialService {
   }
 
   async connect(path: string, baudRate: number = 115200): Promise<void> {
-    // Already connected to this device — no-op
-    if (this.port?.isOpen && this.port.path === path) {
-      return
-    }
+    if (this.connecting) return
+    if (this.port?.isOpen && this.port.path === path) return
+    if (this.port?.isOpen) await this.disconnect()
 
-    if (this.port?.isOpen) {
-      await this.disconnect()
-    }
-
+    this.connecting = true
     return new Promise((resolve, reject) => {
-      this.port = new SerialPort({ path, baudRate }, (err) => {
+      const port = new SerialPort({ path, baudRate }, (err) => {
+        this.connecting = false
         if (err) {
-          this.port = null
+          if (this.port === port) this.port = null
           reject(err)
           return
         }
 
         this.emitStatus(true)
 
-        this.port!.on('close', () => {
-          this.port = null
+        port.on('close', () => {
+          if (this.port === port) this.port = null
           this.emitStatus(false)
         })
 
-        this.port!.on('error', () => {
-          this.port = null
+        port.on('error', () => {
+          if (this.port === port) this.port = null
           this.emitStatus(false)
         })
 
         resolve()
       })
+      this.port = port
     })
   }
 
   async disconnect(): Promise<void> {
-    if (!this.port?.isOpen) return
+    if (!this.port?.isOpen) {
+      this.port = null
+      this.emitStatus(false)
+      return
+    }
 
     return new Promise((resolve) => {
       this.port!.close(() => {

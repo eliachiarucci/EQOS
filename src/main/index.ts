@@ -87,7 +87,7 @@ function registerIpcHandlers(): void {
 
     serialService.setEnteringDfu(true)
 
-    // Send CMD 0x08 to reboot the board into DFU bootloader
+    // Send CMD 0x90 to reboot the board into DFU bootloader
     console.log('[DFU] Sending ENTER_DFU command...')
     await enterDfuMode()
 

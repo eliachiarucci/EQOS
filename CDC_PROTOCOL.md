@@ -119,7 +119,7 @@ Takes effect immediately — the device switches EQ processing to the selected p
 
 Erases the profile flash sector and writes all current profiles from RAM. Returns `ERR_FLASH` if the operation fails.
 
-### 0x08 — ENTER_DFU
+### 0x90 — ENTER_DFU
 
 **Request payload:** (none, LEN=0)
 

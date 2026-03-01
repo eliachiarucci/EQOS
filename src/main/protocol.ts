@@ -9,7 +9,7 @@ const CMD_SET_PROFILE = 0x04
 const CMD_DELETE_PROFILE = 0x05
 const CMD_SET_ACTIVE = 0x06
 const CMD_SAVE_TO_FLASH = 0x07
-const CMD_ENTER_DFU = 0x08
+const CMD_ENTER_DFU = 0x90
 
 // Status codes
 const STATUS_OK = 0x00
