@@ -3,12 +3,24 @@ import type { EqProfile } from '../shared/types/eq'
 import type { DfuState, DfuProgress } from '../shared/types/dfu'
 
 interface BoardApi {
-  getDeviceInfo(): Promise<{ fwVersion: string; maxProfiles: number; maxFilters: number; activeProfileId: number }>
+  getDeviceInfo(): Promise<{ hwModel: number; hwVersion: string; fwVersion: string; maxProfiles: number; maxFilters: number; activeProfileId: number }>
+  getActiveProfile(): Promise<number>
   listProfiles(): Promise<{ id: string; name: string }[]>
   loadProfile(id: string): Promise<EqProfile | null>
   saveProfile(profile: EqProfile): Promise<boolean>
   deleteProfile(id: string): Promise<boolean>
   setActive(id: string): Promise<boolean>
+  getManufacturer(): Promise<string>
+  getProduct(): Promise<string>
+  getAudioItf(): Promise<string>
+  setManufacturer(value: string): Promise<boolean>
+  setProduct(value: string): Promise<boolean>
+  setAudioItf(value: string): Promise<boolean>
+  reboot(): Promise<boolean>
+  getDac(): Promise<boolean>
+  getAmp(): Promise<boolean>
+  setDac(enable: boolean): Promise<boolean>
+  setAmp(enable: boolean): Promise<boolean>
 }
 
 interface UsbApi {

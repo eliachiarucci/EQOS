@@ -4,12 +4,25 @@ import { serialService } from './serialService'
 // Commands
 const CMD_GET_DEVICE_INFO = 0x01
 const CMD_GET_PROFILE_LIST = 0x02
-const CMD_GET_PROFILE = 0x03
-const CMD_SET_PROFILE = 0x04
-const CMD_DELETE_PROFILE = 0x05
-const CMD_SET_ACTIVE = 0x06
-const CMD_SAVE_TO_FLASH = 0x07
+const CMD_GET_ACTIVE = 0x03
+const CMD_GET_PROFILE = 0x04
+const CMD_SET_PROFILE = 0x05
+const CMD_DELETE_PROFILE = 0x06
+const CMD_SET_ACTIVE = 0x07
+const CMD_SAVE_TO_FLASH = 0x08
+const CMD_GET_MANUFACTURER = 0x80
+const CMD_GET_PRODUCT = 0x81
+const CMD_GET_AUDIO_ITF = 0x82
+const CMD_SET_MANUFACTURER = 0x85
+const CMD_SET_PRODUCT = 0x86
+const CMD_SET_AUDIO_ITF = 0x87
 const CMD_ENTER_DFU = 0x90
+const CMD_GET_DFU_SERIAL = 0x91
+const CMD_REBOOT = 0x92
+const CMD_GET_DAC = 0x93
+const CMD_GET_AMP = 0x94
+const CMD_SET_DAC = 0x95
+const CMD_SET_AMP = 0x96
 
 // Status codes
 const STATUS_OK = 0x00
@@ -242,6 +255,8 @@ function parseProfile(data: Buffer): EqProfile {
 // --- Public API ---
 
 export async function getDeviceInfo(): Promise<{
+  hwModel: number
+  hwVersion: string
   fwVersion: string
   maxProfiles: number
   maxFilters: number
@@ -251,11 +266,19 @@ export async function getDeviceInfo(): Promise<{
   if (status !== STATUS_OK) throw new Error(`GET_DEVICE_INFO failed: status ${status}`)
 
   return {
-    fwVersion: `${payload[0]}.${payload[1]}.${payload[2]}`,
-    maxProfiles: payload[3],
-    maxFilters: payload[4],
-    activeProfileId: payload[5]
+    hwModel: payload[0],
+    hwVersion: `${payload[1]}.${payload[2]}`,
+    fwVersion: `${payload[3]}.${payload[4]}.${payload[5]}`,
+    maxProfiles: payload[6],
+    maxFilters: payload[7],
+    activeProfileId: payload[8]
   }
+}
+
+export async function getActiveProfile(): Promise<number> {
+  const { status, payload } = await sendCommand(CMD_GET_ACTIVE)
+  if (status !== STATUS_OK) throw new Error(`GET_ACTIVE failed: status ${status}`)
+  return payload[0]
 }
 
 export async function listBoardProfiles(): Promise<{ id: string; name: string }[]> {
@@ -336,6 +359,12 @@ export async function setActiveProfile(id: string): Promise<boolean> {
   return status === STATUS_OK
 }
 
+export async function getDfuSerial(): Promise<string> {
+  const { status, payload } = await sendCommand(CMD_GET_DFU_SERIAL)
+  if (status !== STATUS_OK) throw new Error(`GET_DFU_SERIAL failed: status ${status}`)
+  return payload.toString('ascii')
+}
+
 export async function enterDfuMode(): Promise<boolean> {
   try {
     const { status } = await sendCommand(CMD_ENTER_DFU)
@@ -345,6 +374,72 @@ export async function enterDfuMode(): Promise<boolean> {
     // causing a read timeout. This is expected — treat as success.
     return true
   }
+}
+
+export async function getManufacturer(): Promise<string> {
+  const { status, payload } = await sendCommand(CMD_GET_MANUFACTURER)
+  if (status !== STATUS_OK) throw new Error(`GET_MANUFACTURER failed: status ${status}`)
+  return payload.toString('ascii')
+}
+
+export async function getProduct(): Promise<string> {
+  const { status, payload } = await sendCommand(CMD_GET_PRODUCT)
+  if (status !== STATUS_OK) throw new Error(`GET_PRODUCT failed: status ${status}`)
+  return payload.toString('ascii')
+}
+
+export async function setManufacturer(value: string): Promise<boolean> {
+  const payload = Buffer.from(value.slice(0, 32), 'ascii')
+  if (payload.length === 0) return false
+  const { status } = await sendCommand(CMD_SET_MANUFACTURER, payload)
+  return status === STATUS_OK
+}
+
+export async function setProduct(value: string): Promise<boolean> {
+  const payload = Buffer.from(value.slice(0, 32), 'ascii')
+  if (payload.length === 0) return false
+  const { status } = await sendCommand(CMD_SET_PRODUCT, payload)
+  return status === STATUS_OK
+}
+
+export async function getAudioItf(): Promise<string> {
+  const { status, payload } = await sendCommand(CMD_GET_AUDIO_ITF)
+  if (status !== STATUS_OK) throw new Error(`GET_AUDIO_ITF failed: status ${status}`)
+  return payload.toString('ascii')
+}
+
+export async function setAudioItf(value: string): Promise<boolean> {
+  const payload = Buffer.from(value.slice(0, 32), 'ascii')
+  if (payload.length === 0) return false
+  const { status } = await sendCommand(CMD_SET_AUDIO_ITF, payload)
+  return status === STATUS_OK
+}
+
+export async function rebootDevice(): Promise<boolean> {
+  const { status } = await sendCommand(CMD_REBOOT)
+  return status === STATUS_OK
+}
+
+export async function getDac(): Promise<boolean> {
+  const { status, payload } = await sendCommand(CMD_GET_DAC)
+  if (status !== STATUS_OK) throw new Error(`GET_DAC failed: status ${status}`)
+  return payload[0] === 1
+}
+
+export async function getAmp(): Promise<boolean> {
+  const { status, payload } = await sendCommand(CMD_GET_AMP)
+  if (status !== STATUS_OK) throw new Error(`GET_AMP failed: status ${status}`)
+  return payload[0] === 1
+}
+
+export async function setDac(enable: boolean): Promise<boolean> {
+  const { status } = await sendCommand(CMD_SET_DAC, Buffer.from([enable ? 1 : 0]))
+  return status === STATUS_OK
+}
+
+export async function setAmp(enable: boolean): Promise<boolean> {
+  const { status } = await sendCommand(CMD_SET_AMP, Buffer.from([enable ? 1 : 0]))
+  return status === STATUS_OK
 }
 
 export async function deleteBoardProfile(id: string): Promise<boolean> {

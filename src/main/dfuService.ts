@@ -5,6 +5,7 @@ import { BrowserWindow } from 'electron'
 import type { DfuState, DfuProgress } from '../shared/types/dfu'
 
 const FLASH_BASE_ADDRESS = '0x08000000'
+const STM32_DFU_VID_PID = '0483:df11'
 
 export class DfuService {
   private mainWindow: BrowserWindow | null = null
@@ -41,62 +42,7 @@ export class DfuService {
     return binary
   }
 
-  async waitForDfuDevice(timeout: number = 15000): Promise<void> {
-    this.state = 'waiting-for-device'
-    this.emitProgress({
-      state: 'waiting-for-device',
-      percent: 0,
-      message: 'Waiting for DFU device...'
-    })
-
-    const start = Date.now()
-    const dfuUtilPath = this.getDfuUtilPath()
-    console.log('[DFU] Looking for DFU device with dfu-util at:', dfuUtilPath)
-
-    while (Date.now() - start < timeout) {
-      const found = await this.checkForDfuDevice(dfuUtilPath)
-      if (found) {
-        console.log('[DFU] DFU device found!')
-        return
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-
-    this.state = 'error'
-    const errorMsg =
-      'Device did not enter DFU mode within 15 seconds. ' +
-      'Try again, or manually enter DFU mode by holding BOOT during power-on.'
-    this.emitProgress({
-      state: 'error',
-      percent: 0,
-      message: errorMsg,
-      error: errorMsg
-    })
-    throw new Error(errorMsg)
-  }
-
-  private checkForDfuDevice(dfuUtilPath: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      execFile(dfuUtilPath, ['--list'], { timeout: 5000 }, (error, stdout, stderr) => {
-        if (error) {
-          console.log('[DFU] dfu-util --list error:', error.message)
-          if (stderr) console.log('[DFU] dfu-util stderr:', stderr)
-          resolve(false)
-          return
-        }
-        console.log('[DFU] dfu-util --list output:', stdout)
-        // "Found DFU:" = device in DFU mode (flashable)
-        // "Found Runtime:" = device in normal mode (NOT flashable)
-        // We need "Found DFU:", not just "Found Runtime:"
-        const hasDfuMode = stdout.includes('Found DFU:')
-        console.log('[DFU] Has DFU mode device:', hasDfuMode)
-        resolve(hasDfuMode)
-      })
-    })
-  }
-
-  async flash(firmwarePath: string): Promise<void> {
+  async flash(firmwarePath: string, serial?: string): Promise<void> {
     this.state = 'flashing'
     this.emitProgress({
       state: 'flashing',
@@ -108,7 +54,9 @@ export class DfuService {
 
     return new Promise((resolve, reject) => {
       const args = [
+        '-d', STM32_DFU_VID_PID,
         '-a', '0',
+        ...(serial ? ['-S', serial] : []),
         '-s', `${FLASH_BASE_ADDRESS}:leave`,
         '-D', firmwarePath
       ]

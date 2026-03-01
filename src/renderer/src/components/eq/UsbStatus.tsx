@@ -8,8 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Usb, Loader2, Upload } from 'lucide-react'
+import { Usb, Loader2, Upload, Settings } from 'lucide-react'
 import { FirmwareUpdateDialog } from './FirmwareUpdateDialog'
+import { ConfigDialog } from './ConfigDialog'
 
 interface DeviceInfo {
   path: string
@@ -24,6 +25,7 @@ export function UsbStatus(): React.JSX.Element {
 const [devices, setDevices] = useState<DeviceInfo[]>([])
   const [scanning, setScanning] = useState(false)
   const [dfuDialogOpen, setDfuDialogOpen] = useState(false)
+  const [configDialogOpen, setConfigDialogOpen] = useState(false)
   const dfuInProgress = useRef(false)
   const manuallyDisconnected = useRef(false)
   const knownDevicePaths = useRef<Set<string>>(new Set())
@@ -149,6 +151,10 @@ const [devices, setDevices] = useState<DeviceInfo[]>([])
           <>
             <DropdownMenuItem onClick={disconnectDevice}>Disconnect</DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setConfigDialogOpen(true)}>
+              <Settings className="h-4 w-4" />
+              Config...
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
                 dfuInProgress.current = true
@@ -180,6 +186,7 @@ const [devices, setDevices] = useState<DeviceInfo[]>([])
           dfuInProgress.current = open
         }}
       />
+      <ConfigDialog open={configDialogOpen} onOpenChange={setConfigDialogOpen} />
     </DropdownMenu>
   )
 }

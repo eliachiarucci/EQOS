@@ -5,12 +5,25 @@ import icon from '../../resources/icon.png?asset'
 import { serialService } from './serialService'
 import {
   getDeviceInfo,
+  getActiveProfile,
   listBoardProfiles,
   loadBoardProfile,
   saveBoardProfile,
   deleteBoardProfile,
   setActiveProfile,
-  enterDfuMode
+  enterDfuMode,
+  getManufacturer,
+  getProduct,
+  getAudioItf,
+  setManufacturer,
+  setProduct,
+  setAudioItf,
+  rebootDevice,
+  getDac,
+  getAmp,
+  setDac,
+  setAmp,
+  getDfuSerial
 } from './protocol'
 import { dfuService } from './dfuService'
 
@@ -62,11 +75,23 @@ function registerIpcHandlers(): void {
   ipcMain.handle('usb:getStatus', () => serialService.getStatus())
 
   ipcMain.handle('board:getDeviceInfo', () => getDeviceInfo())
+  ipcMain.handle('board:getActiveProfile', () => getActiveProfile())
   ipcMain.handle('board:listProfiles', () => listBoardProfiles())
   ipcMain.handle('board:loadProfile', (_event, id: string) => loadBoardProfile(id))
   ipcMain.handle('board:saveProfile', (_event, profile) => saveBoardProfile(profile))
   ipcMain.handle('board:deleteProfile', (_event, id: string) => deleteBoardProfile(id))
   ipcMain.handle('board:setActive', (_event, id: string) => setActiveProfile(id))
+  ipcMain.handle('board:getManufacturer', () => getManufacturer())
+  ipcMain.handle('board:getProduct', () => getProduct())
+  ipcMain.handle('board:getAudioItf', () => getAudioItf())
+  ipcMain.handle('board:setManufacturer', (_event, value: string) => setManufacturer(value))
+  ipcMain.handle('board:setProduct', (_event, value: string) => setProduct(value))
+  ipcMain.handle('board:setAudioItf', (_event, value: string) => setAudioItf(value))
+  ipcMain.handle('board:reboot', () => rebootDevice())
+  ipcMain.handle('board:getDac', () => getDac())
+  ipcMain.handle('board:getAmp', () => getAmp())
+  ipcMain.handle('board:setDac', (_event, enable: boolean) => setDac(enable))
+  ipcMain.handle('board:setAmp', (_event, enable: boolean) => setAmp(enable))
 
   ipcMain.handle('dfu:selectFile', async () => {
     const mainWindow = BrowserWindow.getFocusedWindow()
@@ -87,6 +112,16 @@ function registerIpcHandlers(): void {
 
     serialService.setEnteringDfu(true)
 
+    // Get the DFU serial while still connected over CDC
+    let dfuSerial: string | undefined
+    try {
+      console.log('[DFU] Reading DFU serial from board...')
+      dfuSerial = await getDfuSerial()
+      console.log('[DFU] Board DFU serial:', dfuSerial)
+    } catch (e) {
+      console.warn('[DFU] Could not read DFU serial:', e)
+    }
+
     // Send CMD 0x90 to reboot the board into DFU bootloader
     console.log('[DFU] Sending ENTER_DFU command...')
     await enterDfuMode()
@@ -99,12 +134,12 @@ function registerIpcHandlers(): void {
       // Port may already be torn down by board reboot
     }
 
-    // Wait for the board to re-enumerate in actual DFU mode (not Runtime)
-    console.log('[DFU] Waiting for DFU device...')
-    await dfuService.waitForDfuDevice()
+    // Wait for the board to re-enumerate in DFU mode
+    console.log('[DFU] Waiting for USB re-enumeration...')
+    await new Promise((resolve) => setTimeout(resolve, 3000))
 
     console.log('[DFU] Flashing firmware...')
-    await dfuService.flash(firmwarePath)
+    await dfuService.flash(firmwarePath, dfuSerial)
 
     console.log('[DFU] Flash complete, clearing DFU flag')
     serialService.setEnteringDfu(false)

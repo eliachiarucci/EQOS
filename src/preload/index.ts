@@ -5,13 +5,28 @@ const api = {
   board: {
     getDeviceInfo: (): Promise<{ fwVersion: string; maxProfiles: number; maxFilters: number; activeProfileId: number }> =>
       ipcRenderer.invoke('board:getDeviceInfo'),
+    getActiveProfile: (): Promise<number> => ipcRenderer.invoke('board:getActiveProfile'),
     listProfiles: (): Promise<{ id: string; name: string }[]> =>
       ipcRenderer.invoke('board:listProfiles'),
     loadProfile: (id: string): Promise<unknown> => ipcRenderer.invoke('board:loadProfile', id),
     saveProfile: (profile: unknown): Promise<boolean> =>
       ipcRenderer.invoke('board:saveProfile', profile),
     deleteProfile: (id: string): Promise<boolean> => ipcRenderer.invoke('board:deleteProfile', id),
-    setActive: (id: string): Promise<boolean> => ipcRenderer.invoke('board:setActive', id)
+    setActive: (id: string): Promise<boolean> => ipcRenderer.invoke('board:setActive', id),
+    getManufacturer: (): Promise<string> => ipcRenderer.invoke('board:getManufacturer'),
+    getProduct: (): Promise<string> => ipcRenderer.invoke('board:getProduct'),
+    getAudioItf: (): Promise<string> => ipcRenderer.invoke('board:getAudioItf'),
+    setManufacturer: (value: string): Promise<boolean> =>
+      ipcRenderer.invoke('board:setManufacturer', value),
+    setProduct: (value: string): Promise<boolean> =>
+      ipcRenderer.invoke('board:setProduct', value),
+    setAudioItf: (value: string): Promise<boolean> =>
+      ipcRenderer.invoke('board:setAudioItf', value),
+    reboot: (): Promise<boolean> => ipcRenderer.invoke('board:reboot'),
+    getDac: (): Promise<boolean> => ipcRenderer.invoke('board:getDac'),
+    getAmp: (): Promise<boolean> => ipcRenderer.invoke('board:getAmp'),
+    setDac: (enable: boolean): Promise<boolean> => ipcRenderer.invoke('board:setDac', enable),
+    setAmp: (enable: boolean): Promise<boolean> => ipcRenderer.invoke('board:setAmp', enable)
   },
   usb: {
     getStatus: (): Promise<{ connected: boolean; path?: string }> =>

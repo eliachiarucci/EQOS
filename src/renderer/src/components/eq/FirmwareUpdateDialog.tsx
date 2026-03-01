@@ -56,6 +56,14 @@ export function FirmwareUpdateDialog({
     return cleanup
   }, [open])
 
+  // Auto-close after successful flash
+  useEffect(() => {
+    if (state !== 'complete') return
+
+    const timer = setTimeout(() => onOpenChange(false), 3000)
+    return () => clearTimeout(timer)
+  }, [state, onOpenChange])
+
   const handleSelectFile = useCallback(async () => {
     const path = await window.api.dfu.selectFile()
     if (path) setSelectedFile(path)
