@@ -21,8 +21,7 @@ export function UsbStatus(): React.JSX.Element {
   const setConnected = useEqStore((s) => s.setConnected)
   const fetchBoardProfiles = useEqStore((s) => s.fetchBoardProfiles)
   const setBoardProfiles = useEqStore((s) => s.setBoardProfiles)
-  const setFwVersion = useEqStore((s) => s.setFwVersion)
-  const [devices, setDevices] = useState<DeviceInfo[]>([])
+const [devices, setDevices] = useState<DeviceInfo[]>([])
   const [scanning, setScanning] = useState(false)
   const [dfuDialogOpen, setDfuDialogOpen] = useState(false)
   const dfuInProgress = useRef(false)
@@ -63,8 +62,7 @@ export function UsbStatus(): React.JSX.Element {
       // ignore
     }
     setConnected(false)
-    setFwVersion(null)
-  }, [setConnected, setFwVersion])
+  }, [setConnected])
 
   // On mount, check if main process already has a connection (survives hot reload)
   useEffect(() => {
@@ -84,11 +82,10 @@ export function UsbStatus(): React.JSX.Element {
         fetchBoardProfiles()
       } else if (status.reason !== 'dfu') {
         setBoardProfiles([])
-        setFwVersion(null)
       }
     })
     return cleanup
-  }, [setConnected, fetchBoardProfiles, setBoardProfiles, setFwVersion])
+  }, [setConnected, fetchBoardProfiles, setBoardProfiles])
 
   // Poll for devices every 3 seconds when not connected (suppress during DFU)
   useEffect(() => {

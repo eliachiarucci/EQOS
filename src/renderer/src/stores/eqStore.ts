@@ -60,7 +60,7 @@ export const useEqStore = create<EqState>((set, get) => ({
   setCurrentProfile: (profile) =>
     set({ currentProfile: profile, isDirty: false, selectedPointId: null }),
   setBoardProfiles: (profiles) => set({ boardProfiles: profiles }),
-  setConnected: (connected) => set({ isConnected: connected }),
+  setConnected: (connected) => set(connected ? { isConnected: true } : { isConnected: false, fwVersion: null }),
   setFwVersion: (version) => set({ fwVersion: version }),
 
   createProfile: (name) => {
@@ -138,11 +138,12 @@ export const useEqStore = create<EqState>((set, get) => ({
       const profiles = await window.api.board.listProfiles()
       set({ boardProfiles: profiles })
 
+      const deviceInfo = await window.api.board.getDeviceInfo()
+      set({ fwVersion: deviceInfo.fwVersion })
+
       // Auto-load the active board profile if we're still on the local placeholder
       const { currentProfile } = get()
       if (currentProfile?.id === 'default') {
-        const deviceInfo = await window.api.board.getDeviceInfo()
-        set({ fwVersion: deviceInfo.fwVersion })
         const activeId = deviceInfo.activeProfileId
         if (activeId === 0xff || profiles.length === 0) {
           set({
